@@ -94,9 +94,10 @@ class Distortion:
         print("Carregado de :" + self.imagesDirpathInput + " tipo: " + self.imageInputFormat)
         self.photos = fnmatch.filter(os.listdir('./'+f'{self.imagesDirpathInput}' + '/'), '*.' + f'{self.imageInputFormat}')
 
-    def makeGif(self, gifPorcentage = 0, maxPercentage = 0.4, qtdFramesGif = 50, multiplyer = 0.01, outputFormat = 'jpg', sizeReductionPercent = 0.5):
+    def makeGif(self, gifWidthPorcentage = 0, gifHeightPorcentage = 0, maxPercentage = 0.4, qtdFramesGif = 50, multiplyer = 0.01, outputFormat = 'jpg', sizeReductionPercent = 0.5):
         self.maxPercentage = maxPercentage
-        self.gifPorcentage = gifPorcentage
+        self.gifWidthPorcentage = gifWidthPorcentage
+        self.gifHeightPorcentage = gifHeightPorcentage
         self.qtdFramesGif = qtdFramesGif
         self.multiplyer = multiplyer
         self.outputFormat = outputFormat
@@ -109,7 +110,7 @@ class Distortion:
             elif(len(self.photos) > 1 ):
                 print("Não é possível criar o GIF pois na pasta " + self.dirpathInput + " há mais de um arquivo!")
             else:
-                self.distort(self.maxPercentage, self.gifPorcentage, self.photos , self.qtdFramesGif, self.multiplyer, self.outputFormat, self.sizeReductionPercent)
+                self.distort(self.maxPercentage, self.gifWidthPorcentage, self.gifHeightPorcentage, self.photos , self.qtdFramesGif, self.multiplyer, self.outputFormat, self.sizeReductionPercent)
                 #UNI OS FRAMES E CRIA O GIF
                 #apaga os arquivos individuais da criação
         except AttributeError:
@@ -121,8 +122,9 @@ class Distortion:
         thread.start()
         #thread.join()
 
-    def distort(self, maxPercentage, percentage = 0,  photosToDistort = 0 , gifFrames = 1, multiplyer = 0, outputFormat = 'jpg', sizeReductionPercent = 0.5):
-        self.percentage = percentage
+    def distort(self, maxPercentage, widthPercentage = 0,  heightPercentage = 0, photosToDistort = 0 , gifFrames = 1, multiplyer = 0, outputFormat = 'jpg', sizeReductionPercent = 0.5):
+        self.widthPercentage = widthPercentage
+        self.heightPercentage = heightPercentage
         self.multiplyer = multiplyer
         self.sizeReductionPercent = sizeReductionPercent
         self.outputFormat = outputFormat
@@ -134,19 +136,23 @@ class Distortion:
 
         for self.p in self.photosToDistort:
             for i in range(gifFrames):
-                if(self.percentage > self.maxPercentage):
-                    self.percentage -= self.multiplyer
+                if(self.widthPercentage > self.maxPercentage):
+                    self.widthPercentage -= self.multiplyer
+                
+                if(self.heightPercentage > self.maxPercentage):
+                    self.heightPercentage -= self.multiplyer
 
                 with Image(filename= f'./{self.imagesDirpathInput}/{self.p}') as self.img:
                     self.width = self.img.width
                     self.height = self.img.height
                     #realiza o rescale, com base no valor de porcentagem
-                    self.img.liquid_rescale(self.width - int((self.width * self.percentage)), self.height - int((self.height * self.percentage)),1)
+                    self.img.liquid_rescale(self.width - int((self.width * self.widthPercentage)), self.height - int((self.height * self.heightPercentage)),1,1)
                     #aumenta o tamanho da imagem, realizando o resample, é afetado pelo valor de redução de tamanho de foto
                     self.img.sample(self.width - int(self.width * self.sizeReductionPercent), self.height - int(self.height * self.sizeReductionPercent))
                     self.img.save(filename=f'./{self.dirpathOutput}/'+ self.photoNameFormat.format(i) + '.' + self.outputFormat) 
                     print("Salvo "+ self.photoNameFormat.format(i) + '.' + self.outputFormat +", em: " + "./"+self.dirpathOutput+"/")
-                    self.percentage += self.multiplyer
+                    self.widthPercentage += self.multiplyer
+                    self.heightPercentage += self.multiplyer
 
     def extractVideoFrames(self, videoName, videoInputFormat, imageOutputFormat = 'jpg', fpsOutput = 25):
         self.videoName = videoName
@@ -191,13 +197,15 @@ class Distortion:
 
     #realizar alterações de aúdio e junções de aúdio
 
-distorcer = Distortion('input', 'output')
-distorcer.imagePreProcess() ##carrega as fotos que existem na pasta citada no construtor ex: 'input'
-#distorcer.distort(0.7,0.6)
+distorcer = Distortion('input', 'output') #construtor padrão
+distorcer.imagePreProcess() ##carrega as fotos que existem na pasta citada no construtor ex: 'input', para a memória
+#distorcer.extractVideoFrames('in','mp4') #extrai os frames do vídeo com os argumentos passados
+#distorcer.distort(0.7,0.6) #distorce as imagens especificas com os padrões de distorções inseridos.
 #distorcer.multiThreadProcess(1)
-distorcer.makeGif(0, 0.8, 30, 0.03)
+#distorcer.makeGif()
+distorcer.makeGif(0.0, 0.0, 0.8, 30, 0.02)
 distorcer.joinFrames('gif', 25)
 #distorcer.makeGif()
-#distorcer.extractVideoFrames('in','mp4')
+#Distortion('input', 'output').imagePreProcess().makeGif(0, 0.8, 30, 0.03).joinFrames('gif', 25)
 
 #distorcer.distort('output', 'jpg', 0.4)
