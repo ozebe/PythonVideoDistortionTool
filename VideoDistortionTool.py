@@ -1,11 +1,13 @@
 
 from wand.image import Image
 from wand.display import display
+from threading import Thread
 from datetime import datetime
 import fnmatch
 import os
 import time
 import ffmpeg
+
 
 #now = datetime.now()
 #dt_string = now.strftime("%d-%m-%Y-%H-%M-%S")
@@ -55,6 +57,7 @@ class Distortion:
     def __init__(self, dirpathInput, dirpathOutput):
         self.dirpathInput = dirpathInput
         self.dirpathOutput = dirpathOutput
+        self.threadsExecutando = []
         if not os.path.exists(f'./{self.dirpathInput}'):
             print('Diretorio não encontrado, criando ' + self.dirpathInput + '...')
             os.makedirs(f'./{self.dirpathInput}')
@@ -69,9 +72,17 @@ class Distortion:
         self.imagesDirpathInput = imagesDirpathInput
         self.imageInputFormat = imageInputFormat
         self.photos = fnmatch.filter(os.listdir('./'+f'{self.imagesDirpathInput}' + '/'), '*.' + f'{self.imageInputFormat}')
-        #dirpath = './output/'
-        #fotos = fnmatch.filter(os.listdir(dirpath), '*.jpg')
         print("Carregado " +  str(len(self.photos)) + " fotos!")
+
+    def enableMultithread(self, functions, argss):
+    #pool = Pool()
+    #pool.starmap(function, args)
+    #pool.close()
+    #pool.join()
+        thread = Thread(target=functions,args=argss)
+        self.threadsExecutando.append(thread)
+        thread.start()
+    #thread.join()
 
     def distort(self, photosToDistort, percentage, multiplyer = 0, outputFormat = 'jpg', sizeReductionPercent = 0.5):
         self.percentage = percentage
@@ -99,7 +110,6 @@ class Distortion:
         self.videoInputFormat = videoInputFormat
         self.fpsOutput = fpsOutput
         self.imageOutputFormat = imageOutputFormat
-
         self.probe = ffmpeg.probe('./' + self.dirpathInput + '/' + self.videoName + '.' + self.videoInputFormat)
         self.video = next((stream for stream in self.probe['streams'] if stream['codec_type'] == 'video'), None)
         self.width = int(self.video['width'])
