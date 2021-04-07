@@ -195,9 +195,24 @@ class Distortion:
         ffmpeg.input(f'./{self.joinDirpathInput}/' + self.nameFormatter +"."+ self.joinInputFormat, framerate=self.joinFPS).output(f"./{self.joinDirpathOutput}/{self.dt_string}.{self.JoinOutputFormat}").run()
         print('Processo de junção finalizado...')
 
+    def removePhotos(self, dirpathToRem, formatToRem):
+        self.removePattern = self.photoNameFormatter
+        self.dirpathToRem = dirpathToRem
+        self.formatToRem = formatToRem
+        self.photosToRemove = fnmatch.filter(os.listdir('./'+f'{self.dirpathToRem}' + '/'), self.removePattern +'.' + f'{self.formatToRem}')
+        print(str(len(self.photosToRemove)))
+        for f in self.photosToRemove:
+            os.remove(self.dirpathToRem + f)
+            print("Removido " + self.dirpathToRem + f)
+
+
+        #concluir remoção
+
+
     #realizar alterações de aúdio e junções de aúdio
 
 distorcer = Distortion('input', 'output') #construtor padrão
+##distorcer.removePhotos('output','jpg')
 distorcer.imagePreProcess() ##carrega as fotos que existem na pasta citada no construtor ex: 'input', para a memória
 #distorcer.extractVideoFrames('in','mp4') #extrai os frames do vídeo com os argumentos passados
 #distorcer.distort(0.7,0.6) #distorce as imagens especificas com os padrões de distorções inseridos.
@@ -205,6 +220,7 @@ distorcer.imagePreProcess() ##carrega as fotos que existem na pasta citada no co
 #distorcer.makeGif()
 distorcer.makeGif(0.0, 0.0, 0.8, 30, 0.02)
 distorcer.joinFrames('gif', 25)
+distorcer.removePhotos('output', 'jpg')
 #distorcer.makeGif()
 #Distortion('input', 'output').imagePreProcess().makeGif(0, 0.8, 30, 0.03).joinFrames('gif', 25)
 
