@@ -159,26 +159,50 @@ class Distortion:
         self.photoNameFormat = self.photoNameFormatter
         self.photosToDistort = self.photos
         self.maxPercentage = maxPercentage
-        for self.p in self.photosToDistort:
-            for i in range(gifFrames):
-                if(self.widthPercentage > self.maxPercentage):
-                    self.widthPercentage -= self.multiplyer
+
+        if(self.gifFrames <= 1):
+            i = 0
+            for self.p in self.photosToDistort:
+            #corrigir, quando coloca mais de uma imagem na pasta ele da problema, substitui a imagem
+                    if(self.widthPercentage > self.maxPercentage):
+                        self.widthPercentage -= self.multiplyer
                 
-                if(self.heightPercentage > self.maxPercentage):
-                    self.heightPercentage -= self.multiplyer
+                    if(self.heightPercentage > self.maxPercentage):
+                        self.heightPercentage -= self.multiplyer
 
-                with Image(filename= f'./{self.imagesDirpathInput}/{self.p}') as self.img:
-                    self.width = self.img.width
-                    self.height = self.img.height
-                    #realiza o rescale, com base no valor de porcentagem
-                    self.img.liquid_rescale(self.width - int((self.width * self.widthPercentage)), self.height - int((self.height * self.heightPercentage)),1,1)
-                    #aumenta o tamanho da imagem, realizando o resample, é afetado pelo valor de redução de tamanho de foto
-                    self.img.sample(self.width - int(self.width * self.sizeReductionPercent), self.height - int(self.height * self.sizeReductionPercent))
-                    self.img.save(filename=f'./{self.dirpathOutput}/'+ self.photoNameFormat.format(i) + '.' + self.outputFormat) 
-                    print("Salvo "+ self.photoNameFormat.format(i) + '.' + self.outputFormat +", em: " + "./"+self.dirpathOutput+"/")
-                    self.widthPercentage += self.multiplyer
-                    self.heightPercentage += self.multiplyer
+                    with Image(filename= f'./{self.imagesDirpathInput}/{self.p}') as self.img:
+                        self.width = self.img.width
+                        self.height = self.img.height
+                        #realiza o rescale, com base no valor de porcentagem
+                        self.img.liquid_rescale(self.width - int((self.width * self.widthPercentage)), self.height - int((self.height * self.heightPercentage)),1,1)
+                        #aumenta o tamanho da imagem, realizando o resample, é afetado pelo valor de redução de tamanho de foto
+                        self.img.sample(self.width - int(self.width * self.sizeReductionPercent), self.height - int(self.height * self.sizeReductionPercent))
+                        self.img.save(filename=f'./{self.dirpathOutput}/'+ self.photoNameFormat.format(i) + '.' + self.outputFormat) 
+                        print("Salvo "+ self.photoNameFormat.format(i) + '.' + self.outputFormat +", em: " + "./"+self.dirpathOutput+"/")
+                        self.widthPercentage += self.multiplyer
+                        self.heightPercentage += self.multiplyer
+                    i += 1
+        else:
+            for self.p in self.photosToDistort:
+                #corrigir, quando coloca mais de uma imagem na pasta ele da problema, substitui a imagem
+                for i in range(self.gifFrames):
+                    if(self.widthPercentage > self.maxPercentage):
+                        self.widthPercentage -= self.multiplyer
+                
+                    if(self.heightPercentage > self.maxPercentage):
+                        self.heightPercentage -= self.multiplyer
 
+                    with Image(filename= f'./{self.imagesDirpathInput}/{self.p}') as self.img:
+                        self.width = self.img.width
+                        self.height = self.img.height
+                        #realiza o rescale, com base no valor de porcentagem
+                        self.img.liquid_rescale(self.width - int((self.width * self.widthPercentage)), self.height - int((self.height * self.heightPercentage)),1,1)
+                        #aumenta o tamanho da imagem, realizando o resample, é afetado pelo valor de redução de tamanho de foto
+                        self.img.sample(self.width - int(self.width * self.sizeReductionPercent), self.height - int(self.height * self.sizeReductionPercent))
+                        self.img.save(filename=f'./{self.dirpathOutput}/'+ self.photoNameFormat.format(i) + '.' + self.outputFormat) 
+                        print("Salvo "+ self.photoNameFormat.format(i) + '.' + self.outputFormat +", em: " + "./"+self.dirpathOutput+"/")
+                        self.widthPercentage += self.multiplyer
+                        self.heightPercentage += self.multiplyer
 
     def extractVideoFrames(self, videoName, videoInputFormat, imageOutputFormat = 'jpg', fpsOutput = 25):
         """
@@ -228,7 +252,7 @@ class Distortion:
 
         print('Realizando junção dos frames...')
         self.videoJoined = ffmpeg.input(f'./{self.joinDirpathInput}/' + self.nameFormatter +"."+ self.joinInputFormat, framerate=self.joinFPS).output(f"./{self.joinDirpathOutput}/{self.dt_string}.{self.JoinOutputFormat}").run()
-        print('Processo de junção finalizado...')S
+        print('Processo de junção finalizado...')
 
     def removePhotos(self, dirpathToRem, formatToRem):
         self.removePattern = self.photoNameFormatter
@@ -239,27 +263,10 @@ class Distortion:
         for f in self.photosToRemove:
             os.remove(self.dirpathToRem + f)
             print("Removido " + self.dirpathToRem + f)
-
-
-        #concluir remoção
+            #concluir remoção
 
 
     #realizar alterações de aúdio e junções de aúdio
-
-distorcer = Distortion('input', 'output') #construtor padrão
-##distorcer.removePhotos('output','jpg')
-distorcer.imagePreProcess() ##carrega as fotos que existem na pasta citada no construtor ex: 'input', para a memória
-#distorcer.imagePreProcess('output')
-#distorcer.distort(0.7, 0.01) #distorce as imagens especificas com os padrões de distorções inseridos. NÃO USAR PARA PROCESSAR FRAMES DE VÍDEOS
-#criar método para processar frames de vídeo com o multiThreadProcess
-##realizar a união dos frames no vídeo
-#distorcer.multiThreadProcess(1)
-#distorcer.makeGif()
-distorcer.makeGif(0.0, 0.0, 0.8, 30, 0.02, 'jpg', 0) #cria um gif com a imagem da pasta de entrada, pega uma imagem e vai distorcendo de pouco a pouco
-distorcer.joinFrames('gif', 25)
-distorcer.removePhotos('output', 'jpg')
-#distorcer.makeGif()
-#Distortion('input', 'output').imagePreProcess().makeGif(0, 0.8, 30, 0.03).joinFrames('gif', 25)
 
 #distorcer.distort('output', 'jpg', 0.4)
 
@@ -270,6 +277,11 @@ distorcer.removePhotos('output', 'jpg')
 #distorcer.joinFrames('gif', 25) #realiza o join de todos os frames da pasta output
 #distorcer.removePhotos('output', 'jpg') #remove todas as fotos da pasta indicada, que são do formato 'jpg'
 
+##Distorce um frame Unico. ou todos que estejam na pasta de entrada de dados##
+#distorcer = Distortion('input', 'output') #construtor padrão
+#distorcer.imagePreProcess() ##carrega as fotos que existem na pasta citada no construtor ex: 'input', para a memória
+#distorcer.distort(0.8, 0.01, 0.5, 0.5) #distorce as imagens especificas com os padrões de distorções inseridos. NÃO USAR PARA PROCESSAR FRAMES DE VÍDEOS
+
 #EM TESTE#
 ##Extrai frames de vídeo, aplica a distorção nos frames com multiThread para agilizar o processo##
 #distorcer = Distortion('input', 'output') #construtor padrão
@@ -277,4 +289,3 @@ distorcer.removePhotos('output', 'jpg')
 #distorcer.multiThreadProcess(4, 'output') #inicia o parametro de carregamento das fotos, o segundo argumento é de onde as fotos serão carregads
 #criar método que realiza o processamento paralelo com a quantia de threads paassadas, com as fotos carregas em multiThread e também colocar em threadsRodando cada thread
 #nova que seja iniciada
-
