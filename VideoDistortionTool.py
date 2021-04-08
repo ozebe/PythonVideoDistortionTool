@@ -69,32 +69,59 @@ class Distortion:
             os.makedirs(f'./{self.dirpathOutput}')
 
     #corrigir, imagesDirpathInput, imageInputFormat, estruturar corretamente
-    def multiThreadProcess(self, qtdThreads):
+    def multiThreadProcess(self, qtdThreads, imagesDirpathInputThread = '', imageInputFormatThread = 'jpg'):
+
         print("Iniciando em multi Thread...")
         self.qtdThreads = qtdThreads
-        try:
-            if(len(self.photos) == 0 ):
-                print("Nenhuma foto carregada, verifique a pasta " + './'+f'{self.dirpathInput}' + '/')
-            else:
-                print("Carregado " +  str(len(self.photos)) + " fotos!")
-        except AttributeError:
-            print("Deve chamar o pre processador de imagem antes de continuar.")
+        self.imagesDirpathInputThread = imagesDirpathInputThread
+        self.imageInputFormatThread = imageInputFormatThread
 
-    def imagePreProcess(self, imageInputFormat = 'jpg'):
+        if(self.imagesDirpathInputThread == ''):
+            self.imagesDirpathInputThread = self.dirpathInput
+
+        self.photos = fnmatch.filter(os.listdir('./'+f'{self.imagesDirpathInputThread}' + '/'), '*.' + f'{self.imageInputFormatThread}')
+
+        if(len(self.photos) == 0 ):
+            print("Nenhuma foto carregada, verifique a pasta " + './'+f'{self.imagesDirpathInputThread}' + '/')
+        else:
+            print("Carregado " +  str(len(self.photos)) + " fotos!")
+
+    def imagePreProcess(self, imagesDirpathInput = '', imageInputFormat = 'jpg'):
         """
         Esse método realiza o pré processamento das imagens contidas na pasta "dirpathInput"
         É carregado as fotos que existem na pasta para uma lista de imagens, podendo ser apenas uma ou mais imagens
 
-        :param 
+        :param imagesDirpathInput -- local de onde a/as fotos serão carregadas, caso seja deixado em branco, irá pegar o parâmetro de entrada carregado no construtor
+        é necessário defini-lo, caso esteja carregando as imagens extraídas de um vídeo processado.
+        :param imageInputFormat -- formato da imagem, ex: jpg
         """
+        self.imagesDirpathInput = imagesDirpathInput
+        self.imageInputFormat = imageInputFormat
         print("Pré processamento iniciado...")
-        self.imagesDirpathInput = self.dirpathInput #o diretorio para input das fotos é o mesmo do dirpathInput
-        self.imageInputFormat = imageInputFormat #tipo de arquivo padrão para processamento é 'jpg'
+        if(self.imagesDirpathInput == ''):
+            self.imagesDirpathInput = self.dirpathInput #o diretorio para input das fotos é o mesmo do dirpathInput
+         #tipo de arquivo padrão para processamento é 'jpg'
 
-        print("Carregado de :" + self.imagesDirpathInput + " tipo: " + self.imageInputFormat)
+        
         self.photos = fnmatch.filter(os.listdir('./'+f'{self.imagesDirpathInput}' + '/'), '*.' + f'{self.imageInputFormat}')
 
+        print("Carregado " + str(len(self.photos)) + " frames, de :" + self.imagesDirpathInput + " tipo: " + self.imageInputFormat)
+
     def makeGif(self, gifWidthPorcentage = 0, gifHeightPorcentage = 0, maxPercentage = 0.4, qtdFramesGif = 50, multiplyer = 0.01, outputFormat = 'jpg', sizeReductionPercent = 0.5):
+        """
+        Realiza a criação de um gif, após chamar o pre processador de imagem, é possível realizar a criação do gif, nenhum parâmetro é de preenchimento obrigatório
+        É relizado a criação de vários frames, sendo modificado pouco a pouco a distorção, a quantia padrão de frames criados é 50.
+
+        :param gifWidthPorcentage -- Porcentagem de distorção da largura da imagem original, inicial, valor padrão é 0.
+        :param gifHeightPorcentage -- Porcentagem de distorção da altura da imagem original inicial, valor padrão é 0.
+        :param maxPercentage -- Porcentagem máxima de distorção, sendo 1, 100%, o valor padrão é 0.4 o que equivale a uma distorção máxima de 40% da foto original.
+        :param qtdFramesGif -- Quantia de frames que serão criadas a partir da foto carregada, o valor padrão é de 50 frames.
+        :param multiplyer -- Multiplicador de distorção, o valor de distorção inicial da largura e altura é acrescido com esse parâmetro a cada iteração, o 
+        valor padrão é de 0.01 de distorção por frame, o que equivale a 1%.
+        :param outputFormat -- Formato de saída dos frames, o valor padrão de saída é 'jpg'.
+        :param sizeReductionPercent -- é a quantia de redução no tamanho original da foto carregada, o valor padrão é 0.5 o que equivale a uma diminuiçao de 50% na largura
+        e altura da foto original.
+        """
         self.maxPercentage = maxPercentage
         self.gifWidthPorcentage = gifWidthPorcentage
         self.gifHeightPorcentage = gifHeightPorcentage
@@ -110,7 +137,7 @@ class Distortion:
             elif(len(self.photos) > 1 ):
                 print("Não é possível criar o GIF pois na pasta " + self.dirpathInput + " há mais de um arquivo!")
             else:
-                self.distort(self.maxPercentage, self.gifWidthPorcentage, self.gifHeightPorcentage, self.photos , self.qtdFramesGif, self.multiplyer, self.outputFormat, self.sizeReductionPercent)
+                self.distort(self.maxPercentage, self.multiplyer, self.gifWidthPorcentage, self.gifHeightPorcentage, self.photos , self.qtdFramesGif, self.outputFormat, self.sizeReductionPercent)
                 #UNI OS FRAMES E CRIA O GIF
                 #apaga os arquivos individuais da criação
         except AttributeError:
@@ -122,7 +149,7 @@ class Distortion:
         thread.start()
         #thread.join()
 
-    def distort(self, maxPercentage, widthPercentage = 0,  heightPercentage = 0, photosToDistort = 0 , gifFrames = 1, multiplyer = 0, outputFormat = 'jpg', sizeReductionPercent = 0.5):
+    def distort(self, maxPercentage, multiplyer = 0, widthPercentage = 0,  heightPercentage = 0, photosToDistort = 0 , gifFrames = 1, outputFormat = 'jpg', sizeReductionPercent = 0.5):
         self.widthPercentage = widthPercentage
         self.heightPercentage = heightPercentage
         self.multiplyer = multiplyer
@@ -130,10 +157,8 @@ class Distortion:
         self.outputFormat = outputFormat
         self.gifFrames = gifFrames
         self.photoNameFormat = self.photoNameFormatter
-        #alterar parametro fotos, para ser possível repassar uma lista especifica, para multithread
         self.photosToDistort = self.photos
         self.maxPercentage = maxPercentage
-
         for self.p in self.photosToDistort:
             for i in range(gifFrames):
                 if(self.widthPercentage > self.maxPercentage):
@@ -154,7 +179,16 @@ class Distortion:
                     self.widthPercentage += self.multiplyer
                     self.heightPercentage += self.multiplyer
 
+
     def extractVideoFrames(self, videoName, videoInputFormat, imageOutputFormat = 'jpg', fpsOutput = 25):
+        """
+        Realiza a extração dos frames do vídeo que se encontra na pasta de entrada
+
+        :param videoName -- nome do video, ex: teste
+        :param videoInputFormat -- formato do vídeo a ser processado, ex: mp4
+        :param imageOutputFormat -- formato de saída dos frames processados, ex: jpg, não é de preenchimento obrigatório.
+        :param fpsOutput -- quantia de FPS que irá se basear para retirar os frames, padrão é 25fps.
+        """
         self.videoName = videoName
         self.videoInputFormat = videoInputFormat
         self.fpsOutput = fpsOutput
@@ -181,6 +215,7 @@ class Distortion:
         print('Extraido frames para ' + self.dirpathOutput + ' !')
 
     def joinFrames(self, JoinOutputFormat, joinFPS, joinInputFormat = 'jpg'):
+        #adicionar pasta de onde serão carregados os arquivos para melhorar o fluxo, além de existir possibilidade de imbutir o aúdio.
         self.joinInputFormat = joinInputFormat
         self.JoinOutputFormat = JoinOutputFormat
         self.joinFPS = joinFPS
@@ -192,8 +227,8 @@ class Distortion:
         self.joinDirpathOutput = self.dirpathOutput
 
         print('Realizando junção dos frames...')
-        ffmpeg.input(f'./{self.joinDirpathInput}/' + self.nameFormatter +"."+ self.joinInputFormat, framerate=self.joinFPS).output(f"./{self.joinDirpathOutput}/{self.dt_string}.{self.JoinOutputFormat}").run()
-        print('Processo de junção finalizado...')
+        self.videoJoined = ffmpeg.input(f'./{self.joinDirpathInput}/' + self.nameFormatter +"."+ self.joinInputFormat, framerate=self.joinFPS).output(f"./{self.joinDirpathOutput}/{self.dt_string}.{self.JoinOutputFormat}").run()
+        print('Processo de junção finalizado...')S
 
     def removePhotos(self, dirpathToRem, formatToRem):
         self.removePattern = self.photoNameFormatter
@@ -214,14 +249,32 @@ class Distortion:
 distorcer = Distortion('input', 'output') #construtor padrão
 ##distorcer.removePhotos('output','jpg')
 distorcer.imagePreProcess() ##carrega as fotos que existem na pasta citada no construtor ex: 'input', para a memória
-#distorcer.extractVideoFrames('in','mp4') #extrai os frames do vídeo com os argumentos passados
-#distorcer.distort(0.7,0.6) #distorce as imagens especificas com os padrões de distorções inseridos.
+#distorcer.imagePreProcess('output')
+#distorcer.distort(0.7, 0.01) #distorce as imagens especificas com os padrões de distorções inseridos. NÃO USAR PARA PROCESSAR FRAMES DE VÍDEOS
+#criar método para processar frames de vídeo com o multiThreadProcess
+##realizar a união dos frames no vídeo
 #distorcer.multiThreadProcess(1)
 #distorcer.makeGif()
-distorcer.makeGif(0.0, 0.0, 0.8, 30, 0.02)
+distorcer.makeGif(0.0, 0.0, 0.8, 30, 0.02, 'jpg', 0) #cria um gif com a imagem da pasta de entrada, pega uma imagem e vai distorcendo de pouco a pouco
 distorcer.joinFrames('gif', 25)
 distorcer.removePhotos('output', 'jpg')
 #distorcer.makeGif()
 #Distortion('input', 'output').imagePreProcess().makeGif(0, 0.8, 30, 0.03).joinFrames('gif', 25)
 
 #distorcer.distort('output', 'jpg', 0.4)
+
+##Utiliza uma foto em específico e transforma ela em um gif, distorcendo pouco a pouco, com base nos parâmetros repassados:##
+#distorcer = Distortion('input', 'output') #construtor padrão
+#distorcer.imagePreProcess() ##carrega as fotos que existem na pasta citada no construtor ex: 'input', para a memória
+#distorcer.makeGif(0.0, 0.0, 0.8, 30, 0.02, 'jpg', 0) #cria um gif com a imagem da pasta de entrada, pega uma imagem e vai distorcendo de pouco a pouco
+#distorcer.joinFrames('gif', 25) #realiza o join de todos os frames da pasta output
+#distorcer.removePhotos('output', 'jpg') #remove todas as fotos da pasta indicada, que são do formato 'jpg'
+
+#EM TESTE#
+##Extrai frames de vídeo, aplica a distorção nos frames com multiThread para agilizar o processo##
+#distorcer = Distortion('input', 'output') #construtor padrão
+#distorcer.extractVideoFrames('teste','mp4') #extrai os frames do vídeo com os argumentos passados
+#distorcer.multiThreadProcess(4, 'output') #inicia o parametro de carregamento das fotos, o segundo argumento é de onde as fotos serão carregads
+#criar método que realiza o processamento paralelo com a quantia de threads paassadas, com as fotos carregas em multiThread e também colocar em threadsRodando cada thread
+#nova que seja iniciada
+
