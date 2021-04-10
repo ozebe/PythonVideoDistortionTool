@@ -8,6 +8,7 @@ import os
 import time
 import ffmpeg
 from datetime import datetime
+import math
 
 #now = datetime.now()
 #dt_string = now.strftime("%d-%m-%Y-%H-%M-%S")
@@ -100,6 +101,7 @@ class Distortion:
         print("Pré processamento iniciado...")
         if(self.imagesDirpathInput == ''):
             self.imagesDirpathInput = self.dirpathInput #o diretorio para input das fotos é o mesmo do dirpathInput
+            print("Diretório de processamento não específicado, utilizando " + './'+f'{self.dirpathInput}' + '/')
          #tipo de arquivo padrão para processamento é 'jpg'
 
         
@@ -107,7 +109,7 @@ class Distortion:
 
         print("Carregado " + str(len(self.photos)) + " frames, de :" + self.imagesDirpathInput + " tipo: " + self.imageInputFormat)
 
-    def makeGif(self, gifWidthPorcentage = 0, gifHeightPorcentage = 0, maxPercentage = 0.4, qtdFramesGif = 50, multiplyer = 0.01, outputFormat = 'jpg', sizeReductionPercent = 0.5):
+    def makeGif(self, maxPercentage = 0.4, gifWidthmultiplyer = 0.01, gifHeightmultiplyer = 0.01, gifWidthPorcentage = 0, gifHeightPorcentage = 0,  qtdFramesGif = 50, outputFormat = 'jpg', sizeReductionPercent = 0.5):
         """
         Realiza a criação de um gif, após chamar o pre processador de imagem, é possível realizar a criação do gif, nenhum parâmetro é de preenchimento obrigatório
         É relizado a criação de vários frames, sendo modificado pouco a pouco a distorção, a quantia padrão de frames criados é 50.
@@ -116,7 +118,9 @@ class Distortion:
         :param gifHeightPorcentage -- Porcentagem de distorção da altura da imagem original inicial, valor padrão é 0.
         :param maxPercentage -- Porcentagem máxima de distorção, sendo 1, 100%, o valor padrão é 0.4 o que equivale a uma distorção máxima de 40% da foto original.
         :param qtdFramesGif -- Quantia de frames que serão criadas a partir da foto carregada, o valor padrão é de 50 frames.
-        :param multiplyer -- Multiplicador de distorção, o valor de distorção inicial da largura e altura é acrescido com esse parâmetro a cada iteração, o 
+        :param gifWidthmultiplyer -- Multiplicador de distorção da largura dos frames, o valor de distorção inicial da largura é acrescido com esse parâmetro a cada iteração, o 
+        valor padrão é de 0.01 de distorção por frame, o que equivale a 1%.
+        :param gifHeightmultiplyer -- Multiplicador de distorção da altura dos frames, o valor de distorção inicial da altura é acrescido com esse parâmetro a cada iteração, o 
         valor padrão é de 0.01 de distorção por frame, o que equivale a 1%.
         :param outputFormat -- Formato de saída dos frames, o valor padrão de saída é 'jpg'.
         :param sizeReductionPercent -- é a quantia de redução no tamanho original da foto carregada, o valor padrão é 0.5 o que equivale a uma diminuiçao de 50% na largura
@@ -126,7 +130,9 @@ class Distortion:
         self.gifWidthPorcentage = gifWidthPorcentage
         self.gifHeightPorcentage = gifHeightPorcentage
         self.qtdFramesGif = qtdFramesGif
-        self.multiplyer = multiplyer
+        self.gifWidthmultiplyer = gifWidthmultiplyer
+        self.gifHeightmultiplyer = gifHeightmultiplyer
+        self.gifHeightPorcentage = gifHeightPorcentage
         self.outputFormat = outputFormat
         self.sizeReductionPercent = sizeReductionPercent
         #realizar um split 
@@ -134,14 +140,17 @@ class Distortion:
         try:
             if(len(self.photos) == 0 ):
                 print("Nenhuma foto carregada, verifique a pasta " + './'+f'{self.dirpathInput}' + '/')
+                exit()
             elif(len(self.photos) > 1 ):
                 print("Não é possível criar o GIF pois na pasta " + self.dirpathInput + " há mais de um arquivo!")
+                exit()
             else:
-                self.distort(self.maxPercentage, self.multiplyer, self.gifWidthPorcentage, self.gifHeightPorcentage, self.photos , self.qtdFramesGif, self.outputFormat, self.sizeReductionPercent)
+                self.distort(self.maxPercentage, self.gifWidthmultiplyer, self.gifHeightmultiplyer, self.gifWidthPorcentage, self.gifHeightPorcentage, self.photos , self.qtdFramesGif, self.outputFormat, self.sizeReductionPercent)
                 #UNI OS FRAMES E CRIA O GIF
                 #apaga os arquivos individuais da criação
         except AttributeError:
             print("Deve chamar o pre processador de imagem antes de continuar.")
+            exit()
 
     def enableMultithread(self, functions, argss):
         thread = Thread(target=functions,args=argss)
@@ -149,10 +158,11 @@ class Distortion:
         thread.start()
         #thread.join()
 
-    def distort(self, maxPercentage, multiplyer = 0, widthPercentage = 0,  heightPercentage = 0, photosToDistort = 0 , gifFrames = 1, outputFormat = 'jpg', sizeReductionPercent = 0.5):
+    def distort(self, maxPercentage, widthMultiplyer = 0, heightMultiplyer = 0, widthPercentage = 0,  heightPercentage = 0, photosToDistort = 0 , gifFrames = 1, outputFormat = 'jpg', sizeReductionPercent = 0.5):
         self.widthPercentage = widthPercentage
         self.heightPercentage = heightPercentage
-        self.multiplyer = multiplyer
+        self.widthMultiplyer = widthMultiplyer
+        self.heightMultiplyer = heightMultiplyer
         self.sizeReductionPercent = sizeReductionPercent
         self.outputFormat = outputFormat
         self.gifFrames = gifFrames
@@ -165,10 +175,10 @@ class Distortion:
             for self.p in self.photosToDistort:
             #corrigir, quando coloca mais de uma imagem na pasta ele da problema, substitui a imagem
                     if(self.widthPercentage > self.maxPercentage):
-                        self.widthPercentage -= self.multiplyer
+                        self.widthPercentage -= self.widthMultiplyer
                 
                     if(self.heightPercentage > self.maxPercentage):
-                        self.heightPercentage -= self.multiplyer
+                        self.heightPercentage -= self.heightMultiplyer
 
                     with Image(filename= f'./{self.imagesDirpathInput}/{self.p}') as self.img:
                         self.width = self.img.width
@@ -179,18 +189,18 @@ class Distortion:
                         self.img.sample(self.width - int(self.width * self.sizeReductionPercent), self.height - int(self.height * self.sizeReductionPercent))
                         self.img.save(filename=f'./{self.dirpathOutput}/'+ self.photoNameFormat.format(i) + '.' + self.outputFormat) 
                         print("Salvo "+ self.photoNameFormat.format(i) + '.' + self.outputFormat +", em: " + "./"+self.dirpathOutput+"/")
-                        self.widthPercentage += self.multiplyer
-                        self.heightPercentage += self.multiplyer
+                        self.widthPercentage += self.widthMultiplyer
+                        self.heightPercentage += self.heightMultiplyer
                     i += 1
         else:
             for self.p in self.photosToDistort:
                 #corrigir, quando coloca mais de uma imagem na pasta ele da problema, substitui a imagem
                 for i in range(self.gifFrames):
                     if(self.widthPercentage > self.maxPercentage):
-                        self.widthPercentage -= self.multiplyer
+                        self.widthPercentage -= self.widthMultiplyer
                 
                     if(self.heightPercentage > self.maxPercentage):
-                        self.heightPercentage -= self.multiplyer
+                        self.heightPercentage -= self.heightMultiplyer
 
                     with Image(filename= f'./{self.imagesDirpathInput}/{self.p}') as self.img:
                         self.width = self.img.width
@@ -201,8 +211,8 @@ class Distortion:
                         self.img.sample(self.width - int(self.width * self.sizeReductionPercent), self.height - int(self.height * self.sizeReductionPercent))
                         self.img.save(filename=f'./{self.dirpathOutput}/'+ self.photoNameFormat.format(i) + '.' + self.outputFormat) 
                         print("Salvo "+ self.photoNameFormat.format(i) + '.' + self.outputFormat +", em: " + "./"+self.dirpathOutput+"/")
-                        self.widthPercentage += self.multiplyer
-                        self.heightPercentage += self.multiplyer
+                        self.widthPercentage += self.widthMultiplyer
+                        self.heightPercentage += self.heightMultiplyer
 
     def extractVideoFrames(self, videoName, videoInputFormat, imageOutputFormat = 'jpg', fpsOutput = 25):
         """
@@ -273,19 +283,23 @@ class Distortion:
 ##Utiliza uma foto em específico e transforma ela em um gif, distorcendo pouco a pouco, com base nos parâmetros repassados:##
 #distorcer = Distortion('input', 'output') #construtor padrão
 #distorcer.imagePreProcess() ##carrega as fotos que existem na pasta citada no construtor ex: 'input', para a memória
-#distorcer.makeGif(0.0, 0.0, 0.8, 30, 0.02, 'jpg', 0) #cria um gif com a imagem da pasta de entrada, pega uma imagem e vai distorcendo de pouco a pouco
+#distorcer.makeGif(0.8, 0.00, 0.014, 0.0, 0.0,50, 'jpg',0)
 #distorcer.joinFrames('gif', 25) #realiza o join de todos os frames da pasta output
 #distorcer.removePhotos('output', 'jpg') #remove todas as fotos da pasta indicada, que são do formato 'jpg'
 
 ##Distorce um frame Unico. ou todos que estejam na pasta de entrada de dados##
-#distorcer = Distortion('input', 'output') #construtor padrão
-#distorcer.imagePreProcess() ##carrega as fotos que existem na pasta citada no construtor ex: 'input', para a memória
-#distorcer.distort(0.8, 0.01, 0.5, 0.5) #distorce as imagens especificas com os padrões de distorções inseridos. NÃO USAR PARA PROCESSAR FRAMES DE VÍDEOS
-
+ts = round(time.time() * 1000)
+distorcer = Distortion('input', 'output') #construtor padrão
+distorcer.imagePreProcess() ##carrega as fotos que existem na pasta citada no construtor ex: 'input', para a memória
+distorcer.distort(0.8, 0.01, 0.01, 0.0, 0.7, sizeReductionPercent = 0) #distorce as imagens especificas com os padrões de distorções inseridos. NÃO USAR PARA PROCESSAR FRAMES DE VÍDEOS
+tf = round(time.time() * 1000)
+print("Demorou " + str(tf - ts) +" ms para processar.")
 #EM TESTE#
 ##Extrai frames de vídeo, aplica a distorção nos frames com multiThread para agilizar o processo##
 #distorcer = Distortion('input', 'output') #construtor padrão
-#distorcer.extractVideoFrames('teste','mp4') #extrai os frames do vídeo com os argumentos passados
+#distorcer.extractVideoFrames('percebemos','mp4') #extrai os frames do vídeo com os argumentos passados, colocar referencia processedVideo, para aplicar o efeito de aúdio
 #distorcer.multiThreadProcess(4, 'output') #inicia o parametro de carregamento das fotos, o segundo argumento é de onde as fotos serão carregads
+#distorcer.makeVideo
 #criar método que realiza o processamento paralelo com a quantia de threads paassadas, com as fotos carregas em multiThread e também colocar em threadsRodando cada thread
 #nova que seja iniciada
+#criar método para unir os frames resultantes com o audio editado e finalizar o vídeo
