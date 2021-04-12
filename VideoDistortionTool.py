@@ -1,4 +1,5 @@
 
+import os
 from wand.image import Image
 from wand.display import display
 from wand.resource import limits
@@ -6,7 +7,7 @@ from wand.resource import limits
 from threading import Thread
 from datetime import datetime
 import fnmatch
-import os
+
 import time
 import ffmpeg
 from datetime import datetime
@@ -20,7 +21,8 @@ class Distortion:
         self.nameFormatter = nameFormatter
         self.photoNameFormatter = photoNameFormatter
         self.threadsExecutando = []
-        #limits['thread'] = 4    
+        #limits['thread'] = 4  
+        limits['memory'] = 1024 * 1024 * 1024  
         print("-----------------------Carregamento de diretórios------------------------")
         print("Diretório de entrada padrão: " + './'+self.dirpathInput + '/')
         print("Diretório de saída padrão: " + './'+self.dirpathOutput + '/')
@@ -135,11 +137,13 @@ class Distortion:
             exit()
 
     def enableMultithread(self, functions, argss):
+        
         thread = Thread(target=functions,args=argss)
         self.threadsExecutando.append(thread)
         thread.start()
         #print("Thread: " + thread.name)
         #print(argss[5])
+        
 
         #thread.join()
 
@@ -245,7 +249,6 @@ class Distortion:
         self.video = next((stream for stream in self.probe['streams'] if stream['codec_type'] == 'video'), None)
         self.width = int(self.video['width'])
         self.height = int(self.video['height'])
-        
         print("---------------------------Extração de frames----------------------------")
         print('Extraindo frames de: ' + f'./{self.dirpathInput}/{self.videoName}.{self.videoInputFormat}' '...')
         try:
@@ -257,6 +260,7 @@ class Distortion:
                     sws_flags='bilinear',
                     start_number=0)
             .run(capture_stdout=True, capture_stderr=True))
+            self.loadedVideo = ffmpeg.input(f'./{self.dirpathInput}/{self.videoName}.{self.videoInputFormat}')
         except ffmpeg.Error as e:
             print('stdout:', e.stdout.decode('utf8'))
             print('stderr:', e.stderr.decode('utf8'))
@@ -273,14 +277,15 @@ class Distortion:
         self.joinFPS = joinFPS
         self.now = datetime.now()
         self.dt_string = self.now.strftime("%d-%m-%Y-%H-%M-%S")
-
-
+        print("----------------------------Junção de frames-----------------------------")
         self.joinDirpathInput = self.dirpathOutput
         self.joinDirpathOutput = self.dirpathOutput
 
         print('Realizando junção dos frames...')
         self.videoJoined = ffmpeg.input(f'./{self.joinDirpathInput}/' + self.nameFormatter +"."+ self.joinInputFormat, framerate=self.joinFPS).output(f"./{self.joinDirpathOutput}/{self.dt_string}.{self.JoinOutputFormat}").run()
         print('Processo de junção finalizado...')
+        print("-------------------------------------------------------------------------")
+        print()
 
     def removePhotos(self, dirpathToRem, formatToRem):
         self.removePattern = self.photoNameFormatter
@@ -317,132 +322,126 @@ class Distortion:
     
     #caso a divisão de frames seja igual para todos as Threads
         if((self.qtdFramesVideo % self.qtdThreadsVideoProcess) == 0):
-            j = self.qtdFramesVideo / self.qtdThreadsVideoProcess
+            self.j = self.qtdFramesVideo / self.qtdThreadsVideoProcess
             print("Total de frames: " +str( self.qtdFramesVideo))
             print("Threads executando: " + str(self.qtdThreadsVideoProcess))
-            for i in range(self.qtdThreadsVideoProcess):
+            for self.i in range(self.qtdThreadsVideoProcess):
             #se estiver no começo
-                if(i == 0):
+                if(self.i == 0):
                 #chama a thread para distorção
-                    fts = self.photos[i:self.floorFramesToThreads]
-                    #print("Thread: " + str(i))
-                    #print(fts)
-                #args = [fts, dirpath, width, height]
-                    args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
-                    self.enableMultithread(self.distort, args)
+                    self.fts = self.photos[self.i:self.floorFramesToThreads]
+                    self.args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, self.fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
+                    self.enableMultithread(self.distort, self.args)
 
-                    comeco = self.floorFramesToThreads
+                    self.comeco = self.floorFramesToThreads
 
             #se estiver no final
-                elif(i + 1 == self.qtdThreadsVideoProcess):
-                    fts = self.photos[comeco:self.qtdFramesVideo]
-                    #print("Thread: " + str(i))
-                    #print(fts)
-                    args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
+                elif(self.i + 1 == self.qtdThreadsVideoProcess):
+                    self.fts = self.photos[self.comeco:self.qtdFramesVideo]
+
+                    self.args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, self.fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
 
 
-                    self.enableMultithread(self.distort, args)
+                    self.enableMultithread(self.distort, self.args)
 
             #se estiver no meio
                 else:
-                    fts = self.photos[comeco:self.floorFramesToThreads + comeco]
-                    #print("Thread: " + str(i))
-                    #print(fts)
-                    args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
+                    self.fts = self.photos[self.comeco:self.floorFramesToThreads + self.comeco]
+                    self.args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, self.fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
 
-                    self.enableMultithread(self.distort, args)
-                    comeco += self.floorFramesToThreads
+                    self.enableMultithread(self.distort, self.args)
+                    self.comeco += self.floorFramesToThreads
 
         else:
         #caso a divisão resultante seja par
             if((self.qtdFramesVideo % 2) == 0):
-                c = math.ceil(self.framesToThreads - self.floorFramesToThreads)
-                d = (self.floorFramesToThreads * self.qtdThreadsVideoProcess) + (c * 2)
-                e = self.floorFramesToThreads + (c * 2)
+                self.c = math.ceil(self.framesToThreads - self.floorFramesToThreads)
+                self.d = (self.floorFramesToThreads * self.qtdThreadsVideoProcess) + (self.c * 2)
+                self.e = self.floorFramesToThreads + (self.c * 2)
                 print("Total de frames: " +str( self.qtdFramesVideo))
                 print("Threads executando: " + str(self.qtdThreadsVideoProcess))
-                print("Frames para Threads: " + str(d))
-                for x in range(self.qtdThreadsVideoProcess):
+                print("Frames para Threads: " + str(self.d))
+                for self.x in range(self.qtdThreadsVideoProcess):
                 #se estiver no começo
-                    if(x == 0):
+                    if(self.x == 0):
                     #chama a thread para distorção
-                        fts = self.photos[x:self.floorFramesToThreads]
-                        args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
+                        self.fts = self.photos[self.x:self.floorFramesToThreads]
+                        self.args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, self.fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
                     
                     
                     #args.append((fts, dirpath, width, height))
                     #enableMultithread(distorceInicial, args)
-                        self.enableMultithread(self.distort, args)
+                        self.enableMultithread(self.distort, self.args)
 
                     #print("Thread " + str(x) + ", frames: " + str(floorFramesToThreads) + " : " + str(fotos[x:floorFramesToThreads])) 
-                        comeco = self.floorFramesToThreads
+                        self.comeco = self.floorFramesToThreads
                 #se estiver no final
-                    elif(x + 1 == self.qtdThreadsVideoProcess):
+                    elif(self.x + 1 == self.qtdThreadsVideoProcess):
                     #chama a thread para distorção
-                        fts = self.photos[comeco:self.qtdFramesVideo]
-                        args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
+                        self.fts = self.photos[self.comeco:self.qtdFramesVideo]
+                        self.args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, self.fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
                     
                     #args.append((fts, dirpath, width, height))
-                        self.enableMultithread(self.distort, args)
+                        self.enableMultithread(self.distort, self.args)
 
                     #print("Thread " + str(x) + ", frames: " + str(e) + " : " + str(fotos[comeco:qtdFrames])) 
 
                 #se estiver no meio    
                     else:
                     #chama a thread para distorção
-                        fts = self.photos[comeco:self.floorFramesToThreads + comeco]
-                        args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
+                        self.fts = self.photos[self.comeco:self.floorFramesToThreads + self.comeco]
+                        self.args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, self.fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
                     
                     #args.append((fts, dirpath, width, height))
-                        self.enableMultithread(self.distort, args)
+                        self.enableMultithread(self.distort, self.args)
 
                     #print("Thread " + str(x) + ", frames: " + str(floorFramesToThreads) + " : " + str(fotos[comeco:floorFramesToThreads + comeco])) 
-                        comeco += self.floorFramesToThreads
+                        self.comeco += self.floorFramesToThreads
         #se for impar
             else:
             #a2 = qtdFrames / qtdThreads
             #b2 = math.floor(a2)
-                c2 = math.floor((self.framesToThreads - self.floorFramesToThreads) * self.qtdThreadsVideoProcess)
-                d2 = (self.floorFramesToThreads * self.qtdThreadsVideoProcess) + c2
-                e2 = self.floorFramesToThreads + c2
+                self.c2 = math.floor((self.framesToThreads - self.floorFramesToThreads) * self.qtdThreadsVideoProcess)
+                self.d2 = (self.floorFramesToThreads * self.qtdThreadsVideoProcess) + self.c2
+                self.e2 = self.floorFramesToThreads + self.c2
                 print("Total de frames: " +str(self.qtdFramesVideo))
                 print("Threads executando: " + str(self.qtdThreadsVideoProcess))
-                print("Frames para Threads: " + str(d2))
+                print("Frames para Threads: " + str(self.d2))
             #comeco = 0
-                for x2 in range(self.qtdThreadsVideoProcess):
+                for self.x2 in range(self.qtdThreadsVideoProcess):
                 #se estiver no começo
-                    if(x2 == 0):
+                    if(self.x2 == 0):
                     #chama a thread para distorção
-                        fts = self.photos[x2:self.floorFramesToThreads]
-                        args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
+                        self.fts = self.photos[self.x2:self.floorFramesToThreads]
+                        self.args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, self.fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
                     
                     #args.append((fts, dirpath, width, height))
                     #enableMultithread(distorceInicial, args)
-                        self.enableMultithread(self.distort, args)
+                        self.enableMultithread(self.distort, self.args)
 
-                        print("Thread " + str(x2) + ", frames: " + str(self.floorFramesToThreads) + " : " + str(self.photos[x2:self.floorFramesToThreads])) 
-                        comeco = self.floorFramesToThreads
+                        print("Thread " + str(self.x2) + ", frames: " + str(self.floorFramesToThreads) + " : " + str(self.photos[self.x2:self.floorFramesToThreads])) 
+                        self.comeco = self.floorFramesToThreads
                 #se estiver no final
-                    elif(x2 + 1 == self.qtdThreadsVideoProcess):
+                    elif(self.x2 + 1 == self.qtdThreadsVideoProcess):
                     #chama a thread para distorção
-                        fts = self.photos[comeco:self.qtdFramesVideo]
-                        args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
+                        self.fts = self.photos[self.comeco:self.qtdFramesVideo]
+                        self.args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, self.fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
                     
                     #args.append((fts, dirpath, width, height))
-                        self.enableMultithread(self.distort, args)
+                        self.enableMultithread(self.distort, self.args)
 
                     #print("Thread " + str(x2) + ", frames: " + str(e2) + " : " + str(fotos[comeco:qtdFrames])) 
                 #se estiver no meio
                     else:
                     #chama a thread para distorção
-                        fts = self.photos[comeco:self.floorFramesToThreads + comeco]
-                        args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
+                        self.fts = self.photos[self.comeco:self.floorFramesToThreads + self.comeco]
+                        self.args = [self.videoMaxPercentage, self.videoWidthmultiplyer, self.videoHeightmultiplyer, self.videoWidthPorcentage, self.videoHeightPorcentage, self.fts, 1, self.videoFrameOutputFormat, self.videoSizeReductionPercent, True]
                     
                     #args.append((fts, dirpath, width, height))
-                        self.enableMultithread(self.distort, args)
+                        self.enableMultithread(self.distort, self.args)
 
                     #print("Thread " + str(x2) + ", frames: " + str(floorFramesToThreads) + " : " + str(fotos[comeco:floorFramesToThreads + comeco])) 
-                        comeco += self.floorFramesToThreads
+                        self.comeco += self.floorFramesToThreads
         print("-------------------------------------------------------------------------")
         print()
     ###################################################################################################################
@@ -468,10 +467,11 @@ class Distortion:
 ##Extrai frames de vídeo, aplica a distorção nos frames com multiThread para agilizar o processo##
 distorcer = Distortion('input', 'output') #construtor padrão
 distorcer.extractVideoFrames('meu-filho-quer-bolacha','mp4') #extrai os frames do vídeo com os argumentos passados, colocar referencia processedVideo, para aplicar o efeito de aúdio
-distorcer.multiThreadProcess(4, 'output') #inicia o parametro de carregamento das fotos, o segundo argumento é de onde as fotos serão carregads
+distorcer.multiThreadProcess(1, 'output') #inicia o parametro de carregamento das fotos, o segundo argumento é de onde as fotos serão carregads
 distorcer.makeVideo(0.8, 0.0, 0.0, 0.4, 0.4)
-
-
+distorcer.joinFrames('mp4', 25) #realiza o join de todos os frames da pasta output
+#audio = self.video.audio.filter("vibrato", 12)
+#audio.output('aa.mp3').run()
 #criar método que realiza o processamento paralelo com a quantia de threads paassadas, com as fotos carregas em multiThread e também colocar em threadsRodando cada thread
 #nova que seja iniciada
 #criar método para unir os frames resultantes com o audio editado e finalizar o vídeo
