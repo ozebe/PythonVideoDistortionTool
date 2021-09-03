@@ -8,6 +8,7 @@ from threading import Thread
 from datetime import datetime
 import fnmatch
 
+import sys
 import time
 import ffmpeg
 from datetime import datetime
@@ -15,24 +16,31 @@ import math
 
 
 class Distortion:
-    def __init__(self, dirpathInput, dirpathOutput, nameFormatter = "%04d", photoNameFormatter = "{:04d}"):
+    def __init__(self, dirpathInput, dirpathOutput,  standardImageInputFormat = 'jpg', standardImageOutputFormat = 'jpg', nameFormatter = "%04d", photoNameFormatter = "{:04d}"):
         self.dirpathInput = dirpathInput
         self.dirpathOutput = dirpathOutput
         self.nameFormatter = nameFormatter
         self.photoNameFormatter = photoNameFormatter
         self.threadsExecutando = []
+        self.standardImageInputFormat = standardImageInputFormat
+        self.standardImageOutputFormat = standardImageOutputFormat
+
         #limits['thread'] = 4  
         limits['memory'] = 1024 * 1024 * 1024  
-        print("-----------------------Carregamento de diretórios------------------------")
+        print("-------------------------Opções de inicialização-------------------------")
         print("Diretório de entrada padrão: " + './'+self.dirpathInput + '/')
         print("Diretório de saída padrão: " + './'+self.dirpathOutput + '/')
         if not os.path.exists(f'./{self.dirpathInput}'):
-            print('Diretorio não encontrado, criando ' + self.dirpathInput + '...')
+            print('Diretorio não encontrado, criando ' + './'+self.dirpathInput + '...')
             os.makedirs(f'./{self.dirpathInput}')
             
         if not os.path.exists(f'./{self.dirpathOutput}'):
-            print('Diretorio não encontrado, criando ' + self.dirpathOutput + '...')
+            print('Diretorio não encontrado, criando ' + './'+self.dirpathOutput + '...')
             os.makedirs(f'./{self.dirpathOutput}')
+        print("Formatador de nome: " + self.nameFormatter)
+        print("Formatador de nome de foto: " + self.photoNameFormatter)
+        print("Tipo padrão de entrada de imagem: " + self.standardImageInputFormat)
+        print("Tipo padrão de saída de imagem: " + self.standardImageOutputFormat)
         print("-------------------------------------------------------------------------")
         print()
 
@@ -71,29 +79,36 @@ class Distortion:
         print()
 
 
-    def imagePreProcess(self, imagesDirpathInput = '', imageInputFormat = 'jpg'):
+    def imagePreProcess(self, imagesDirpathInput = '', imageInputFormat = ''):
         """
         Esse método realiza o pré processamento das imagens contidas na pasta "dirpathInput"
         É carregado as fotos que existem na pasta para uma lista de imagens, podendo ser apenas uma ou mais imagens
 
-        :param imagesDirpathInput -- local de onde a/as fotos serão carregadas, caso seja deixado em branco, irá pegar o parâmetro de entrada carregado no construtor
-        é necessário defini-lo, caso esteja carregando as imagens extraídas de um vídeo processado.
-        :param imageInputFormat -- formato da imagem, ex: jpg
+        :param imagesDirpathInput -- local de onde a/as fotos serão carregadas, caso seja deixado em branco, irá pegar o parâmetro de entrada carregado no construtor,
+        é necessário defini-lo caso esteja carregando as imagens extraídas de um vídeo processado.
+        :param imageInputFormat -- formato da imagem a ser processada na pasta "dirpathInput", caso seja deixado em branco irá pegar o valor de "standardImageInputFormat" presente no construtor da classe, ex: jpg
         """
         self.imagesDirpathInput = imagesDirpathInput
         self.imageInputFormat = imageInputFormat
+
+        print("----------------------------Pré processamento----------------------------")
         print("Pré processamento iniciado...")
         if(self.imagesDirpathInput == ''):
             self.imagesDirpathInput = self.dirpathInput #o diretorio para input das fotos é o mesmo do dirpathInput
-            print("Diretório de processamento não específicado, utilizando " + './'+f'{self.dirpathInput}' + '/')
+            print("Diretório de processamento não específicado, utilizando : " + './'+f'{self.dirpathInput}' + '/')
          #tipo de arquivo padrão para processamento é 'jpg'
 
-        
+        if(self.imageInputFormat == ''):
+            self.imageInputFormat = self.standardImageInputFormat
+            print("Formato de entrada de imagem não específicado, utilizando : " +f'{self.standardImageInputFormat}')
+
         self.photos = fnmatch.filter(os.listdir('./'+f'{self.imagesDirpathInput}' + '/'), '*.' + f'{self.imageInputFormat}')
 
-        print("Carregado " + str(len(self.photos)) + " frames, de :" + self.imagesDirpathInput + " tipo: " + self.imageInputFormat)
+        print("Carregado " + str(len(self.photos)) + " frames, de ./" + self.imagesDirpathInput + ", tipo: " + self.imageInputFormat)
+        print("-------------------------------------------------------------------------")
+        print()
 
-    def makeGif(self, maxPercentage = 0.4, gifWidthmultiplyer = 0.01, gifHeightmultiplyer = 0.01, gifWidthPorcentage = 0, gifHeightPorcentage = 0,  qtdFramesGif = 50, outputFormat = 'jpg', sizeReductionPercent = 0.5):
+    def makeGif(self, maxPercentage = 0.4, gifWidthmultiplyer = 0.01, gifHeightmultiplyer = 0.01, gifWidthPorcentage = 0, gifHeightPorcentage = 0,  qtdFramesGif = 50, outputFormat = '', sizeReductionPercent = 0.5):
         """
         Realiza a criação de um gif, após chamar o pre processador de imagem, é possível realizar a criação do gif, nenhum parâmetro é de preenchimento obrigatório
         É relizado a criação de vários frames, sendo modificado pouco a pouco a distorção, a quantia padrão de frames criados é 50.
@@ -106,7 +121,7 @@ class Distortion:
         valor padrão é de 0.01 de distorção por frame, o que equivale a 1%.
         :param gifHeightmultiplyer -- Multiplicador de distorção da altura dos frames, o valor de distorção inicial da altura é acrescido com esse parâmetro a cada iteração, o 
         valor padrão é de 0.01 de distorção por frame, o que equivale a 1%.
-        :param outputFormat -- Formato de saída dos frames, o valor padrão de saída é 'jpg'.
+        :param outputFormat -- Formato de saída dos frames, caso não seja atribuído valor, irá pegar do "standardImageOutputFormat.
         :param sizeReductionPercent -- é a quantia de redução no tamanho original da foto carregada, o valor padrão é 0.5 o que equivale a uma diminuiçao de 50% na largura
         e altura da foto original.
         """
@@ -119,22 +134,48 @@ class Distortion:
         self.gifHeightPorcentage = gifHeightPorcentage
         self.outputFormat = outputFormat
         self.sizeReductionPercent = sizeReductionPercent
-        #realizar um split 
+
+        #realizar um split
+        print("------------------------------Criação de GIF-----------------------------")
         print("Iniciando criação do GIF!")
+        print("maxPercentage: " + f'{self.maxPercentage}')
+        print("gifWidthmultiplyer: " + f'{self.gifWidthmultiplyer}')
+        print("gifHeightmultiplyer: " + f'{self.gifHeightmultiplyer}')
+        print("gifWidthPorcentage: " + f'{self.gifWidthPorcentage}')
+        print("gifHeightPorcentage: " + f'{self.gifHeightPorcentage}')
+        print("qtdFramesGif: " + f'{self.qtdFramesGif}')
+
+        if(self.outputFormat == ''):
+            self.outputFormat = self.standardImageOutputFormat
+            print("Formato de saída de imagem não específicado, utilizando : " +f'{self.standardImageOutputFormat}')
+        else:
+            print("outputFormat: " + self.outputFormat)
+        print("sizeReductionPercent: " + f'{self.sizeReductionPercent}')    
+
         try:
             if(len(self.photos) == 0 ):
-                print("Nenhuma foto carregada, verifique a pasta " + './'+f'{self.dirpathInput}' + '/')
+                print("Nenhuma foto carregada, verifique a pasta : " + './'+f'{self.dirpathInput}' + '/')
+                print("-------------------------------------------------------------------------")
+                print()
                 exit()
             elif(len(self.photos) > 1 ):
-                print("Não é possível criar o GIF pois na pasta " + self.dirpathInput + " há mais de um arquivo!")
+                print("Não é possível criar o GIF pois na pasta : " + self.dirpathInput + " há mais de um arquivo!")
+                print("-------------------------------------------------------------------------")
+                print()
                 exit()
             else:
+                print("-------------------------------------------------------------------------")
+                print()
                 self.distort(self.maxPercentage, self.gifWidthmultiplyer, self.gifHeightmultiplyer, self.gifWidthPorcentage, self.gifHeightPorcentage, self.photos , self.qtdFramesGif, self.outputFormat, self.sizeReductionPercent)
                 #UNI OS FRAMES E CRIA O GIF
                 #apaga os arquivos individuais da criação
         except AttributeError:
             print("Deve chamar o pre processador de imagem antes de continuar.")
+            print("-------------------------------------------------------------------------")
+            print()
             exit()
+        print("-------------------------------------------------------------------------")
+        print()
 
     def enableMultithread(self, functions, argss):
         
@@ -147,7 +188,8 @@ class Distortion:
 
         #thread.join()
 
-    def distort(self, maxPercentage, widthMultiplyer = 0, heightMultiplyer = 0, widthPercentage = 0,  heightPercentage = 0, photosToDistort = 0 , gifFrames = 1, outputFormat = 'jpg', sizeReductionPercent = 0.5, isVideo = False):
+    def distort(self, maxPercentage, widthMultiplyer = 0, heightMultiplyer = 0, widthPercentage = 0,  heightPercentage = 0, photosToDistort = 0 , gifFrames = 1, outputFormat = '', sizeReductionPercent = 0.5, isVideo = False):
+        self.maxPercentage = maxPercentage
         self.widthPercentage = widthPercentage
         self.heightPercentage = heightPercentage
         self.widthMultiplyer = widthMultiplyer
@@ -157,12 +199,36 @@ class Distortion:
         self.gifFrames = gifFrames
         self.photoNameFormat = self.photoNameFormatter
         self.isVideo = isVideo
+        print("---------------------------Distorção dos Frames--------------------------")
+        print("maxPercentage: " + f'{self.maxPercentage}' + ' (' + f'{self.maxPercentage * 100}' + '%)')
+        print("widthMultiplyer: " + f'{self.widthMultiplyer}'  + ' (' + f'{self.widthMultiplyer * 100}' + '%)')
+        print("heightMultiplyer: " + f'{self.heightMultiplyer}' + ' (' + f'{self.heightMultiplyer * 100}' + '%)')
+        print("widthPercentage: " + f'{self.widthPercentage}' + ' (' + f'{self.widthPercentage * 100}' + '%)')
+        print("heightPercentage: " + f'{self.heightPercentage}' + ' (' + f'{self.heightPercentage * 100}' + '%)')
+
+        print("gifFrames: " + f'{self.gifFrames}')
+
+        print("sizeReductionPercent: " + f'{self.sizeReductionPercent}' + ' (' + f'{self.sizeReductionPercent * 100}' + '%)')
+        print("isVideo: " + f'{self.isVideo}')
+
+
+
+
+        
+        if(self.outputFormat == ''):
+            self.outputFormat = self.standardImageOutputFormat #o diretorio para input das fotos é o mesmo do dirpathInput
+            print("Tipo de saída de imagem não especificado, utilizando : " + f'{self.standardImageOutputFormat}')
+        else:
+            print("outputFormat: " + f'{self.outputFormat}')
+
+
         if(photosToDistort == 0): #caso não tenha sido repassado o parametro de fotos, ele carrega as fotos pré carregas com o pré processador
             print("Parâmetro de fotos não passado, utilizando padrão.")
             self.photosToDistort = self.photos
         else:
             self.photosToDistort = photosToDistort
-        self.maxPercentage = maxPercentage
+            print("photosToDistort: " + f'{len(self.photosToDistort)}')
+        
 
         #print("Fotos a processar: " + str(len(self.photosToDistort)))
         #print(self.photosToDistort)
@@ -212,6 +278,8 @@ class Distortion:
                         i += 1
             else:
                 for self.p in self.photosToDistort:
+                    #a = 100 / self.gifFrames
+                    #b = 0
                     #corrigir, quando coloca mais de uma imagem na pasta ele da problema, substitui a imagem
                     for i in range(self.gifFrames):
                         if(self.widthPercentage > self.maxPercentage):
@@ -229,8 +297,12 @@ class Distortion:
                             self.img.sample(self.width - int(self.width * self.sizeReductionPercent), self.height - int(self.height * self.sizeReductionPercent))
                             self.img.save(filename=f'./{self.dirpathOutput}/'+ self.photoNameFormat.format(i) + '.' + self.outputFormat) 
                             print("Salvo "+ self.photoNameFormat.format(i) + '.' + self.outputFormat +", em: " + "./"+self.dirpathOutput+"/")
+                            #b += a
+                            #print(str(b)+"%", end=" ")
                             self.widthPercentage += self.widthMultiplyer
                             self.heightPercentage += self.heightMultiplyer
+        print("-------------------------------------------------------------------------")
+        print()
 
     def extractVideoFrames(self, videoName, videoInputFormat, imageOutputFormat = 'jpg', fpsOutput = 25):
         """
@@ -249,7 +321,7 @@ class Distortion:
         self.video = next((stream for stream in self.probe['streams'] if stream['codec_type'] == 'video'), None)
         self.width = int(self.video['width'])
         self.height = int(self.video['height'])
-        print("---------------------------Extração de frames----------------------------")
+        print("-----------------------Extração de frames de vídeo------------------------")
         print('Extraindo frames de: ' + f'./{self.dirpathInput}/{self.videoName}.{self.videoInputFormat}' '...')
         try:
             (ffmpeg.input(f'./{self.dirpathInput}/{self.videoName}.{self.videoInputFormat}')
@@ -270,33 +342,62 @@ class Distortion:
         print()
 
 
-    def joinFrames(self, JoinOutputFormat, joinFPS, joinInputFormat = 'jpg'):
+    def joinFrames(self, joinOutputFormat, joinFPS, joinInputFormat = ''):
         #adicionar pasta de onde serão carregados os arquivos para melhorar o fluxo, além de existir possibilidade de imbutir o aúdio.
         self.joinInputFormat = joinInputFormat
-        self.JoinOutputFormat = JoinOutputFormat
+        self.joinOutputFormat = joinOutputFormat
         self.joinFPS = joinFPS
         self.now = datetime.now()
         self.dt_string = self.now.strftime("%d-%m-%Y-%H-%M-%S")
+        
+
+
         print("----------------------------Junção de frames-----------------------------")
         self.joinDirpathInput = self.dirpathOutput
         self.joinDirpathOutput = self.dirpathOutput
 
+        if(self.joinInputFormat == ''):
+            print("Formato de imagem de entrada para junção não específicada, utilizando : " +f'{self.standardImageInputFormat}')
+            self.joinInputFormat = self.standardImageInputFormat
+        else:
+            print("joinInputFormat: " + self.joinInputFormat)  
+        print("joinOutputFormat: " + self.joinOutputFormat)
+        print("joinFPS: " + f'{self.joinFPS}')
+        print("Join input: " + f"./{self.joinDirpathInput}/{self.nameFormatter}.{self.joinInputFormat}")
+        print("Join output: " + f"./{self.joinDirpathOutput}/{self.dt_string}.{self.joinOutputFormat}")
+
         print('Realizando junção dos frames...')
-        self.videoJoined = ffmpeg.input(f'./{self.joinDirpathInput}/' + self.nameFormatter +"."+ self.joinInputFormat, framerate=self.joinFPS).output(f"./{self.joinDirpathOutput}/{self.dt_string}.{self.JoinOutputFormat}").run()
+
+        self.videoJoined = ffmpeg.input(f'./{self.joinDirpathInput}/' + self.nameFormatter +"."+ self.joinInputFormat, framerate=self.joinFPS).output(f"./{self.joinDirpathOutput}/{self.dt_string}.{self.joinOutputFormat}").run()
         print('Processo de junção finalizado...')
         print("-------------------------------------------------------------------------")
         print()
 
-    def removePhotos(self, dirpathToRem, formatToRem):
+    def removePhotos(self, dirpathToRem = '', formatToRem = ''):
+        print("----------------------------Remoção de Fotos-----------------------------")
         self.removePattern = self.photoNameFormatter
         self.dirpathToRem = dirpathToRem
+
         self.formatToRem = formatToRem
+
+        if(self.dirpathToRem == ''):
+            self.dirpathToRem = self.dirpathOutput #o diretorio para input das fotos é o mesmo do dirpathInput
+            print("Diretório para remoção não específicado, utilizando : " + './'+f'{self.dirpathOutput}' + '/')
+
+        if(self.formatToRem == ''):
+            self.formatToRem =  self.standardImageOutputFormat #o diretorio para input das fotos é o mesmo do dirpathInput
+            print("Formato para remoção não específicado, utilizando : " + './'+f'{self.standardImageOutputFormat}' + '/')    
+
+        
         self.photosToRemove = fnmatch.filter(os.listdir('./'+f'{self.dirpathToRem}' + '/'), self.removePattern +'.' + f'{self.formatToRem}')
+        print(os.listdir('./'+f'{self.dirpathToRem}' + '/'))
         print(str(len(self.photosToRemove)))
         for f in self.photosToRemove:
             os.remove(self.dirpathToRem + f)
             print("Removido " + self.dirpathToRem + f)
             #concluir remoção
+        print("-------------------------------------------------------------------------")
+        print()
 
     #pega as fotos já extraídas do vídeo da pasta indicada
     def makeVideo(self, videoMaxPercentage, videoWidthmultiplyer, videoHeightmultiplyer, videoWidthPorcentage, videoHeightPorcentage, videoFrameOutputFormat = 'jpg',videoOutputFormat = 'mp4', videoSizeReductionPercent = 0):
@@ -451,7 +552,7 @@ class Distortion:
 ##Utiliza uma foto em específica e transforma ela em um GIF, distorcendo pouco a pouco, com base nos parâmetros repassados:##
 #distorcer = Distortion('input', 'output') #construtor padrão
 #distorcer.imagePreProcess() ##carrega as fotos que existem na pasta citada no construtor ex: 'input', para a memória
-#distorcer.makeGif(0.8, 0.00, 0.014, 0.0, 0.0,50, 'jpg',0)
+#distorcer.makeGif(0.9, 0.00, 0.014, 0.0, 0.0,50)
 #distorcer.joinFrames('gif', 25) #realiza o join de todos os frames da pasta output
 #distorcer.removePhotos('output', 'jpg') #remove todas as fotos da pasta indicada, que são do formato 'jpg'
 
@@ -465,11 +566,11 @@ class Distortion:
 
 #EM TESTE#
 ##Extrai frames de vídeo, aplica a distorção nos frames com multiThread para agilizar o processo##
-distorcer = Distortion('input', 'output') #construtor padrão
-distorcer.extractVideoFrames('meu-filho-quer-bolacha','mp4') #extrai os frames do vídeo com os argumentos passados, colocar referencia processedVideo, para aplicar o efeito de aúdio
-distorcer.multiThreadProcess(1, 'output') #inicia o parametro de carregamento das fotos, o segundo argumento é de onde as fotos serão carregads
-distorcer.makeVideo(0.8, 0.0, 0.0, 0.4, 0.4)
-distorcer.joinFrames('mp4', 25) #realiza o join de todos os frames da pasta output
+#distorcer = Distortion('input', 'output') #construtor padrão
+#distorcer.extractVideoFrames('meu-filho-quer-bolacha','mp4') #extrai os frames do vídeo com os argumentos passados, colocar referencia processedVideo, para aplicar o efeito de aúdio
+#distorcer.multiThreadProcess(1, 'output') #inicia o parametro de carregamento das fotos, o segundo argumento é de onde as fotos serão carregads
+#distorcer.makeVideo(0.8, 0.0, 0.0, 0.4, 0.4)
+#distorcer.joinFrames('mp4', 25) #realiza o join de todos os frames da pasta output
 #audio = self.video.audio.filter("vibrato", 12)
 #audio.output('aa.mp3').run()
 #criar método que realiza o processamento paralelo com a quantia de threads paassadas, com as fotos carregas em multiThread e também colocar em threadsRodando cada thread
